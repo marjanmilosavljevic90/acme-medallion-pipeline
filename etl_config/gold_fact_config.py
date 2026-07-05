@@ -51,8 +51,8 @@ FACT_CONFIG: dict[str, FactConfig] = {
                 on o.customer_id = dc.customer_id and dc.is_current = true
             left join {GOLD}.dim_shippers ds
                 on case
-                    when o.shipper_id not in (select shipper_id from {SILVER}.shippers) then -1
-                    else o.shipper_id
+                    when coalesce(o.shipper_id, -1) not in (select shipper_id from {SILVER}.shippers) then -1
+                    else coalesce(o.shipper_id, -1)
                    end = ds.shipper_id
                 and ds.is_current = true
         """,

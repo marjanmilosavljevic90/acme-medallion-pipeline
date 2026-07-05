@@ -129,7 +129,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
     "shipments": BronzeTableConfig(
         table_name     = f"{BRONZE}.shipments",
         table_description = "Raw shipment tracking data",
-        all_columns      = ["OrderID", "LineNo", "ShipperID", "CustomerID", "EmployeeID", "ShipmentDate", "ShipperID", "ProductID"],
+        all_columns      = ["OrderID", "LineNo", "ShipperID", "CustomerID",  "ProductID", "EmployeeID", "ShipmentDate"],
         required_columns = ["OrderID",  "LineNo", "ShipperID", "CustomerID", "EmployeeID", "ShipmentDate"],
         column_comments  = {
             "OrderID": "FK to orders",
