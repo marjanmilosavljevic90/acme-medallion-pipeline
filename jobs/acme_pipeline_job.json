@@ -1,0 +1,193 @@
+{
+  "name": "ACME_ETL_JOB",
+  "email_notifications": {
+    "no_alert_for_skipped_runs": false
+  },
+  "webhook_notifications": {},
+  "timeout_seconds": 0,
+  "max_concurrent_runs": 1,
+  "tasks": [
+    {
+      "task_key": "run_bronze",
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/01_run_bronze",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "check_new_files",
+      "depends_on": [
+        {
+          "task_key": "run_bronze"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "condition_task": {
+        "op": "NOT_EQUAL",
+        "left": "{{tasks.run_bronze.values.exit_value}}",
+        "right": "NO_NEW_FILES"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "set_silver_tables",
+      "depends_on": [
+        {
+          "task_key": "check_new_files",
+          "outcome": "true"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/02_set_silver_tables",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "run_silver",
+      "depends_on": [
+        {
+          "task_key": "set_silver_tables"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "for_each_task": {
+        "inputs": "{{tasks.set_silver_tables.values.silver_tables}}",
+        "concurrency": 4,
+        "task": {
+          "task_key": "run_silver_table",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/03_run_silver",
+            "base_parameters": {
+              "table_name": "{{input}}"
+            },
+            "source": "WORKSPACE"
+          },
+          "timeout_seconds": 0,
+          "email_notifications": {},
+          "webhook_notifications": {},
+          "disabled": false
+        }
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "set_gold_dims",
+      "depends_on": [
+        {
+          "task_key": "run_silver"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/04_set_gold_dims",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "run_gold_dims",
+      "depends_on": [
+        {
+          "task_key": "set_gold_dims"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "for_each_task": {
+        "inputs": "{{tasks.set_gold_dims.values.gold_dims}}",
+        "concurrency": 4,
+        "task": {
+          "task_key": "run_gold_dims_iteration",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/05_run_gold_dims",
+            "base_parameters": {
+              "dim_name": "{{input}}"
+            },
+            "source": "WORKSPACE"
+          },
+          "timeout_seconds": 0,
+          "email_notifications": {},
+          "webhook_notifications": {},
+          "disabled": false
+        }
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "set_gold_facts",
+      "depends_on": [
+        {
+          "task_key": "run_gold_dims"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/06_set_gold_facts",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    },
+    {
+      "task_key": "run_gold_facts",
+      "depends_on": [
+        {
+          "task_key": "set_gold_facts"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "for_each_task": {
+        "inputs": "{{tasks.set_gold_facts.values.gold_facts}}",
+        "concurrency": 3,
+        "task": {
+          "task_key": "run_gold_facts_iteration",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/marjanmilosavljevic90@gmail.com/acme-medallion-pipeline/pipeline/07_run_gold_facts",
+            "base_parameters": {
+              "fact_name": "{{input}}"
+            },
+            "source": "WORKSPACE"
+          },
+          "timeout_seconds": 0,
+          "email_notifications": {},
+          "webhook_notifications": {},
+          "disabled": false
+        }
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {},
+      "disabled": false
+    }
+  ],
+  "queue": {
+    "enabled": true
+  },
+  "performance_target": "PERFORMANCE_OPTIMIZED"
+}
