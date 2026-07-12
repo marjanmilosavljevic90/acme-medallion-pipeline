@@ -1,21 +1,11 @@
 from dataclasses import dataclass, field
 
-CATALOG = "acme_catalog"
-SILVER_SCHEMA = "silver"
-GOLD_SCHEMA = "gold"
+from etl_config.constants_config import CATALOG, SILVER_SCHEMA, GOLD_SCHEMA, SILVER, GOLD, ColumnDef
 
-SILVER = f"{CATALOG}.{SILVER_SCHEMA}"
-GOLD = f"{CATALOG}.{GOLD_SCHEMA}"
-
-
-@dataclass
-class ColumnDef:
-    """Single column definition: name, SQL type, nullability, and comment."""
-    name: str
-    sql_type: str
-    nullable: bool = True
-    comment: str = ""
-
+__all__ = [
+    "CATALOG", "SILVER_SCHEMA", "GOLD_SCHEMA", "SILVER", "GOLD",
+    "ColumnDef", "SCD2_COLUMNS", "DimConfig", "DIM_CONFIG",
+]
 
 SCD2_COLUMNS: list[ColumnDef] = [
     ColumnDef("valid_from", "TIMESTAMP", nullable=False, comment="SCD2: record valid from timestamp"),

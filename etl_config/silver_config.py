@@ -1,5 +1,10 @@
 from dataclasses import dataclass
 
+from etl_config.constants_config import CATALOG, SILVER_SCHEMA, BRONZE, SILVER
+
+__all__ = ["CATALOG", "SILVER_SCHEMA", "BRONZE", "SILVER", "SILVER_CONFIG", "SilverTableConfig"]
+
+
 @dataclass
 class SilverTableConfig:
     """Configuration for Bronze -> Silver transformation """
@@ -12,10 +17,6 @@ class SilverTableConfig:
     required_columns: list[str] # required columns
     column_comments: dict       # Description of the columns
 
-CATALOG = "acme_catalog"
-SILVER_SCHEMA = "silver"
-BRONZE = f"{CATALOG}.bronze"
-SILVER = f"{CATALOG}.{SILVER_SCHEMA}"
 
 SILVER_CONFIG: dict[str, SilverTableConfig] = {
     "categories": SilverTableConfig(

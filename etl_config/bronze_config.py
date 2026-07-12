@@ -1,5 +1,28 @@
 from dataclasses import dataclass
 
+from etl_config.constants_config import (
+    CATALOG,
+    LANDING_SCHEMA,
+    BRONZE_SCHEMA,
+    BRONZE,
+    LANDING_DIR,
+    PROCESSED_DIR,
+    FAILED_DIR,
+)
+
+__all__ = [
+    "CATALOG", 
+    "LANDING_SCHEMA", 
+    "BRONZE_SCHEMA", 
+    "BRONZE",
+    "LANDING_DIR", 
+    "PROCESSED_DIR", 
+    "FAILED_DIR", 
+    "BRONZE_CONFIG", 
+    "BronzeTableConfig",
+]
+
+
 @dataclass
 class BronzeTableConfig:
     """Configuration for Landing -> Bronze ingestion"""
@@ -9,18 +32,14 @@ class BronzeTableConfig:
     required_columns: list[str]
     column_comments: dict[str, str]
 
-CATALOG = "acme_catalog"
-LANDING_SCHEMA = "landing"
-BRONZE_SCHEMA = "bronze"
-BRONZE = f"{CATALOG}.{BRONZE_SCHEMA}"
 
-LANDING_DIR = f"/Volumes/{CATALOG}/{LANDING_SCHEMA}/raw_files"
-PROCESSED_DIR = f"{LANDING_DIR}/processed"
-FAILED_DIR = f"{LANDING_DIR}/failed"
+# Audit columns added to every bronze table
+METADATA_COLUMN_COMMENTS = {
+    "_source_file": "Original source Excel file name",
+    "_ingested_at": "Ingestion timestamp",
+    "_batch_id": "Unique ID for this ingestion run",
+}
 
-
-ARCHIVE_DIR = f"/Volumes/{CATALOG}/{LANDING_SCHEMA}/raw_files/archive"
-CHECKPOINT_DIR = f"/Volumes/{CATALOG}/{LANDING_SCHEMA}/_checkpoints/bronze_autoloader"
 
 BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
     "categories": BronzeTableConfig(
@@ -32,9 +51,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
             "CategoryID": "Category unique ID",
             "CategoryName": "Category name",
             "Description": "Category description",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "customers": BronzeTableConfig(
@@ -54,9 +71,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
             "Phone": "Customer phone",
             "PostalCode": "Customer postal code",
             "StateProvince": "Customer state/province",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "divisions": BronzeTableConfig(
@@ -67,9 +82,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
         column_comments  = {
             "DivisionID": "Division unique ID",
             "DivisionName": "Division/region name",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "order_details": BronzeTableConfig  (
@@ -84,9 +97,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
             "Quantity": "Quantity ordered",
             "UnitPrice": "Unit price at order time",
             "Discount": "Discount fraction applied",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "orders": BronzeTableConfig(
@@ -101,9 +112,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
             "EmployeeID": "Employee who processed order",
             "ShipperID": "FK to shippers",
             "Freight": "Freight/shipping cost",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "products": BronzeTableConfig(
@@ -121,9 +130,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
             "UnitPrice": "Selling price per unit",
             "UnitsInStock": "Stock quantity",
             "UnitsOnOrder": "Quantity on order from supplier",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "shipments": BronzeTableConfig(
@@ -139,9 +146,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
             "ProductID": "Product ID (denormalized)",
             "EmployeeID": "Employee who processed shipment",
             "ShipmentDate": "Date line was shipped",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
     "shippers": BronzeTableConfig(
@@ -152,9 +157,7 @@ BRONZE_CONFIG: dict[str, BronzeTableConfig] = {
         column_comments  = {
             "ShipperID": "Shipper unique ID",
             "CompanyName": "Shipper company name",
-            "_source_file": "Original source Excel file name",
-            "_ingested_at": "Ingestion timestamp",
-            "_batch_id": "Unique ID for this ingestion run",
+            **METADATA_COLUMN_COMMENTS,
         },
     ),
 }
