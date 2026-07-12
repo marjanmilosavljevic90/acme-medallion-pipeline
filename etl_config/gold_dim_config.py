@@ -97,7 +97,7 @@ DIM_CONFIG: dict[str, DimConfig] = {
         table_description="Gold dimension: division/region reference, bridge between dim_customers and agg_sales_by_month",
         natural_key="division_id",
         surrogate_key_name="",
-        tracked_columns=[],  # no SCD2 tracking - static reference data
+        tracked_columns=[],  # no SCD2 tracking
         business_columns=[
             ColumnDef("division_id",   "INT",    nullable=False, comment="Division unique ID"),
             ColumnDef("division_name", "STRING", nullable=False, comment="Division/region name"),
