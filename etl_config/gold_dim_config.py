@@ -34,24 +34,25 @@ DIM_CONFIG: dict[str, DimConfig] = {
         natural_key="customer_id",
         surrogate_key_name="customer_sk",
         tracked_columns=[
-            "company_name", "contact_name", "city", "country",
-            "division_id", "division_name",
+            "company_name", "contact_name", "division_id", "city", "country",
         ],
         business_columns=[
             ColumnDef("customer_id",   "INT",    nullable=False, comment="Customer natural key from source"),
             ColumnDef("company_name",  "STRING", nullable=False, comment="Customer company name"),
             ColumnDef("contact_name",  "STRING", nullable=True,  comment="Customer contact person"),
-            ColumnDef("city",          "STRING", nullable=True,  comment="Customer city"),
-            ColumnDef("country",       "STRING", nullable=False, comment="Customer country (breakdown dimension)"),
             ColumnDef("division_id",   "INT",    nullable=False, comment="Division ID"),
-            ColumnDef("division_name", "STRING", nullable=False, comment="Division name - Region (Europe, North America, Scandinavia, South America)"),
+            ColumnDef("city",          "STRING", nullable=True,  comment="Customer city"),
+            ColumnDef("country",       "STRING", nullable=False, comment="Customer country"),
         ],
         source_query=f"""
             select
-                c.customer_id, c.company_name, c.contact_name, c.city,
-                c.country, c.division_id, d.division_name
+                c.customer_id, 
+                c.company_name, 
+                c.contact_name, 
+                c.division_id, 
+                c.city,
+                c.country
             from {SILVER}.customers c
-            left join {SILVER}.divisions d on c.division_id = d.division_id
         """,
     ),
 
@@ -60,18 +61,34 @@ DIM_CONFIG: dict[str, DimConfig] = {
         table_description="Gold SCD2 dimension: product master with denormalized category (product line)",
         natural_key="product_id",
         surrogate_key_name="product_sk",
-        tracked_columns=["product_name", "category_id", "category_name", "quantity_per_unit"],
+        tracked_columns=["product_name", "category_id", "quantity_per_unit"],
         business_columns=[
             ColumnDef("product_id",        "INT",    nullable=False, comment="Product natural key from source"),
             ColumnDef("product_name",      "STRING", nullable=False, comment="Product name"),
             ColumnDef("category_id",       "INT",    nullable=False, comment="Category ID"),
-            ColumnDef("category_name",     "STRING", nullable=False, comment="Category name - Product Line (Womens Footwear, Sportswear...)"),
             ColumnDef("quantity_per_unit", "INT",    nullable=True,  comment="Packaging quantity per unit"),
         ],
         source_query=f"""
-            select p.product_id, p.product_name, p.category_id, cat.category_name, p.quantity_per_unit
+            select p.product_id, p.product_name, p.category_id, p.quantity_per_unit
             from {SILVER}.products p
-            left join {SILVER}.categories cat on p.category_id = cat.category_id
+        """,
+    ),
+
+    "dim_category": DimConfig(
+        target_table=f"{GOLD}.dim_category",
+        table_description="Gold dimension: distinct product categories",
+        natural_key="category_id",
+        surrogate_key_name="",
+        tracked_columns=[],
+        business_columns=[
+            ColumnDef("category_id",   "INT",    nullable=False, comment="Category unique ID"),
+            ColumnDef("category_name", "STRING", nullable=False, comment="Category name"),
+        ],
+        source_query=f"""
+            select distinct
+                category_id,
+                category_name
+            from {SILVER}.categories
         """,
     ),
 
@@ -115,15 +132,18 @@ DIM_CONFIG: dict[str, DimConfig] = {
         surrogate_key_name="",
         tracked_columns=[],
         business_columns=[
-            ColumnDef("date_id",     "INT",     nullable=False, comment="Date surrogate key (format: yyyyMMdd)"),
-            ColumnDef("full_date",   "DATE",    nullable=False, comment="Full date value"),
-            ColumnDef("year",        "INT",     nullable=False, comment="Calendar year"),
-            ColumnDef("quarter",     "INT",     nullable=False, comment="Calendar quarter (1-4)"),
-            ColumnDef("month",       "INT",     nullable=False, comment="Calendar month (1-12)"),
-            ColumnDef("month_name",  "STRING",  nullable=False, comment="Month name (January, February...)"),
-            ColumnDef("week",        "INT",     nullable=False, comment="Week of year"),
-            ColumnDef("day_of_week", "STRING",  nullable=False, comment="Day name (Monday, Tuesday...)"),
-            ColumnDef("is_weekend",  "BOOLEAN", nullable=False, comment="True if Saturday or Sunday"),
+            ColumnDef("date_id",               "INT",     nullable=False, comment="Date surrogate key (format: yyyyMMdd)"),
+            ColumnDef("full_date",             "DATE",    nullable=False, comment="Full date value"),
+            ColumnDef("year",                  "INT",     nullable=False, comment="Calendar year"),
+            ColumnDef("quarter",               "INT",     nullable=False, comment="Calendar quarter (1-4)"),
+            ColumnDef("month",                 "INT",     nullable=False, comment="Calendar month (1-12)"),
+            ColumnDef("month_name",            "STRING",  nullable=False, comment="Month name (January, February...)"),
+            ColumnDef("week",                  "INT",     nullable=False, comment="Week of year"),
+            ColumnDef("day_of_week",           "STRING",  nullable=False, comment="Day name (Monday, Tuesday...)"),
+            ColumnDef("day",                   "INT",     nullable=False, comment="Day of month (1-31)"),
+            ColumnDef("is_weekend",            "BOOLEAN", nullable=False, comment="True if Saturday or Sunday"),
+            ColumnDef("is_first_day_of_month", "BOOLEAN", nullable=False, comment="True if this is the first day of its calendar month"),
+            ColumnDef("is_last_day_of_month",  "BOOLEAN", nullable=False, comment="True if this is the last day of its calendar month"),
         ],
         source_query=f"""
             with date_range as (
@@ -139,7 +159,10 @@ DIM_CONFIG: dict[str, DimConfig] = {
                 date_format(d.full_date, 'MMMM') as month_name,
                 weekofyear(d.full_date) as week,
                 date_format(d.full_date, 'EEEE') as day_of_week,
-                case when dayofweek(d.full_date) in (1, 7) then true else false end as is_weekend
+                day(d.full_date) as day,
+                case when dayofweek(d.full_date) in (1, 7) then true else false end as is_weekend,
+                case when day(d.full_date) = 1 then true else false end as is_first_day_of_month,
+                case when d.full_date = last_day(d.full_date) then true else false end as is_last_day_of_month
             from date_range
             cross join lateral (
                 select explode(sequence(min_date, max_date, interval 1 day)) as full_date

@@ -30,19 +30,31 @@ FACT_CONFIG: dict[str, FactConfig] = {
             ColumnDef("freight",     "DECIMAL(10,2)", nullable=True,  comment="Freight cost for the order"),
         ],
         source_query=f"""
+            with orders_resolved as (
+                select
+                    o.order_id,
+                    o.order_date,
+                    o.customer_id,
+                    o.freight,
+                    case
+                        when coalesce(o.shipper_id, -1) not in (select shipper_id from {SILVER}.shippers) then -1
+                        else coalesce(o.shipper_id, -1)
+                    end as resolved_shipper_id
+                from {SILVER}.orders o
+            )
             select
-                o.order_id, dc.customer_sk, ds.shipper_sk,
-                cast(date_format(o.order_date, 'yyyyMMdd') as int) as date_id,
+                o.order_id, 
+                dc.customer_sk, 
+                ds.shipper_sk,
+                dd.date_id,
                 o.order_date, o.freight
-            from {SILVER}.orders o
+            from orders_resolved o
+            left join {GOLD}.dim_date dd
+                on o.order_date = dd.full_date
             left join {GOLD}.dim_customers dc
                 on o.customer_id = dc.customer_id and dc.is_current = true
             left join {GOLD}.dim_shippers ds
-                on case
-                    when coalesce(o.shipper_id, -1) not in (select shipper_id from {SILVER}.shippers) then -1
-                    else coalesce(o.shipper_id, -1)
-                   end = ds.shipper_id
-                and ds.is_current = true
+                on o.resolved_shipper_id = ds.shipper_id and ds.is_current = true
         """,
     ),
 
@@ -64,14 +76,18 @@ FACT_CONFIG: dict[str, FactConfig] = {
         ],
         source_query=f"""
             select
-                od.order_id, od.line_no, dp.product_sk, od.quantity, od.unit_price,
+                od.order_id, 
+                od.line_no, 
+                dp.product_sk, 
+                od.quantity, 
+                od.unit_price,
                 p.unit_cost, od.discount,
                 cast(od.quantity * od.unit_price * (1 - od.discount) as decimal(12,2)) as revenue,
                 cast(od.quantity * p.unit_cost as decimal(12,2)) as cost,
                 cast(od.quantity * od.unit_price * (1 - od.discount) - od.quantity * p.unit_cost as decimal(12,2)) as margin
             from {SILVER}.order_details od
-            left join {SILVER}.products p on od.product_id = p.product_id
-            left join {GOLD}.dim_products dp
+            left join {SILVER}.products p on od.product_id = p.product_id -- for unit_cost
+            left join {GOLD}.dim_products dp -- for product_sk
                 on od.product_id = dp.product_id and dp.is_current = true
         """,
     ),
@@ -89,7 +105,9 @@ FACT_CONFIG: dict[str, FactConfig] = {
         ],
         source_query=f"""
             select
-                s.order_id, s.line_no, ds.shipper_sk,
+                s.order_id, 
+                s.line_no, 
+                ds.shipper_sk,
                 cast(date_format(s.shipment_date, 'yyyyMMdd') as int) as shipment_date_id,
                 s.shipment_date
             from {SILVER}.shipments s
