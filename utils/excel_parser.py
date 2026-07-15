@@ -55,6 +55,11 @@ class ExcelSheetParser:
         for sheet_name in self.xls.sheet_names:
             logger.debug(f"Reading sheet: {sheet_name}")
             df = pd.read_excel(self.xls, sheet_name=sheet_name)
+
+            # Explicit cast to string to avoid null values
+            for col in df.columns:
+                  df[col] = df[col].apply(lambda x: str(x) if pd.notna(x) else None)
+
             columns = set(df.columns)
             table_name = self._identify_table(columns)
 
